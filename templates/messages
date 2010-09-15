@@ -1,0 +1,12 @@
+<ul>
+{{#rows}}
+    <li class="item">
+    <a href="#/message/{{id}}">
+    {{#value}}
+    <span class="subject">{{subject}}</span></a>{{#attachments}} [@]{{/attachments}}
+    <span class="sender">{{#from}}{{personal}} &lt;{{address}}&gt;{{/from}}</span>
+    <span class="excerpt">{{excerpt}}...</span>
+    {{/value}}
+</li>
+{{/rows}}
+</ul>

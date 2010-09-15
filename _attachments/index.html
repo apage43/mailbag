@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+   <meta charset="utf-8">
+   <title>mailbag!</title>
+   <link rel="stylesheet" href="style/main.css">
+   <script src="lib/jquery-1.4.2.min.js"></script>
+   <script src="lib/sammy-0.6.0.min.js"></script>
+   <script src="/_utils/script/jquery.couch.js"></script>
+   <script src="lib/jquery.mustache.js"></script>
+   <script src="lib/jquery.couch.app.js"></script>
+   <script src="lib/html-sanitizer.js"></script>
+</head>
+<body>
+    <script>
+        $.couch.app(function(app) {
+            var db = app.db;
+            console.log(app.db);
+            var templates = app.ddoc.templates;
+            function render_message(data, hints) {
+                 var msg = {};
+                 msg.subject = data.subject;
+                 msg.from = data.from;
+                 msg.date = data.headers["Date"];
+                 msg.hints = hints;
+                 if(data._attachments) {
+                     msg.has_attach = "-"; //annoted that true won't work here.
+                     msg.attachments = [];
+                     for(attname in data._attachments)
+                     {
+                         msg.attachments.push({
+                             name: attname,
+                             path: '/' + db.name + '/' + data._id + '/' + attname,
+                             size: data._attachments.size
+                         });
+                     }
+                 }
+                 var parts = {};
+                 for(var i in data.parts) {
+                     var typetoks = data.parts[i].contentType.split(';');
+                     parts[typetoks[0]] = data.parts[i];
+                 }
+                 if(parts['text/html']) {
+                     msg.htmlbody = html_sanitize(parts['text/html'].content,
+                         function(uri) {return uri;});
+                 } else if(parts['text/plain']) {
+                     msg.plainbody = parts['text/plain'].content;
+                 }  
+                 $('#mainpane').append($.mustache(templates.viewmessage, msg, null));
+            }
+
+            var sammyapp = $.sammy(function() {
+                this.get('#/', function() {
+                    $('#titlebar').text('mailbag!');
+                    db.view('mailbag/mail-items', {
+                        limit: 50,
+                        descending: true,
+                        success: function(data)
+                        {
+                            console.log(data);
+                            $('#mainpane').html($.mustache(templates.messages, data, null));
+                        }
+                    });
+                });
+
+                this.get('#/message/:id', function(ctx) {
+                    db.openDoc(ctx.params["id"], {success: function(data) {
+                        $('#titlebar').text('mailbag! - ' + data.subject);
+                        $('#mainpane').html('');
+                        var refheader = data.headers["References"];
+                        var refs = [];
+                        if(refheader) {
+                            refs = refheader.replace(/\r/g,"").replace(/ /g,"").split("\n");
+                        }
+                        refs.push(data.messageID);
+                        console.log(refs);
+                        db.view('mailbag/refs', {
+                          keys: refs,
+                          group: true,
+                          success: function(others)
+                          {
+                              if(others.rows.length == 0)
+                              {
+                                  //Short circuit.
+                                  render_message(data, {"class": "picked"});
+                                  console.log("Not a thread!");
+                                  return;
+                              }
+                              var max = 0;
+                              var maxkey;
+                              for(var o in others.rows) {
+                               if(max < others.rows[o].value) 
+                               {
+                                 max = others.rows[o].value;
+                                 maxkey = others.rows[o].key;
+                               }
+                              }
+                              console.log(maxkey);
+                              db.view('mailbag/refs', {
+                                  reduce: false,
+                                  startkey: maxkey,
+                                  endkey: maxkey + 'Z',
+                                  include_docs: true,
+                                  success: function (msgs) 
+                                  {
+                                      msgs.rows.sort(function (a, b){
+                                        return new Date(b.doc.headers["Date"]) - 
+                                               new Date(a.doc.headers["Date"])
+                                      });
+                                      console.log(msgs);
+                                      for(var m in msgs.rows) {
+                                          if(msgs.rows[m].doc._id == ctx.params["id"])
+                                          {
+                                              render_message(msgs.rows[m].doc,
+                                              {"class": "picked"});
+                                          } else {
+                                              render_message(msgs.rows[m].doc);
+                                          }
+                                      }
+                                      window.scrollTo(0,$('.picked').offset().top - 20);
+                                  }
+                              });
+                        }});
+                   }});
+                });
+            });
+
+            $(function(){sammyapp.run('#/');});
+        });
+    </script>
+    <div id="titlebar">mailbag!</div>
+    <div id="mainpane">
+    </div>
+</body>
+</html>

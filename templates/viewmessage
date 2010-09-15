@@ -1,0 +1,12 @@
+<div class="message{{#hints}} {{class}}{{/hints}}">
+<p><b>Subject: {{subject}}</b></p>
+<p><b>From: {{#from}}{{personal}} &lt;{{address}}&gt;{{/from}}</b></p>
+<p><b>Date: {{date}}</b></p>
+{{#has_attach}}<p><b>Attachments: {{/has_attach}}
+{{#attachments}}<span class="attachment"><a href="{{path}}">{{name}}</a> {{size}}</span>{{/attachments}}
+{{#has_attach}}</b></p>{{/has_attach}}
+    <div class="mailbody">
+        {{{htmlbody}}}
+        <pre>{{plainbody}}</pre>
+    </div>
+</div>
