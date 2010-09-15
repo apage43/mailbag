@@ -19,6 +19,7 @@
             var templates = app.ddoc.templates;
             function render_message(data, hints) {
                  var msg = {};
+                 var attpath = '/' + db.name + '/' + data._id + '/';
                  msg.subject = data.subject;
                  msg.from = data.from;
                  msg.date = data.headers["Date"];
@@ -30,7 +31,7 @@
                      {
                          msg.attachments.push({
                              name: attname,
-                             path: '/' + db.name + '/' + data._id + '/' + attname,
+                             path: attpath + attname,
                              size: data._attachments.size
                          });
                      }
@@ -42,7 +43,15 @@
                  }
                  if(parts['text/html']) {
                      msg.htmlbody = html_sanitize(parts['text/html'].content,
-                         function(uri) {return uri;});
+                     function(uri) {
+                         if(uri.substring(0,4) == "cid:" && data.attach_id_map)
+                         {
+                             uri = uri.substring(4);
+                             if(data.attach_id_map[uri]) {
+                                 return attpath + data.attach_id_map[uri];
+                             }
+                         }
+                         return uri;});
                  } else if(parts['text/plain']) {
                      msg.plainbody = parts['text/plain'].content;
                  }  
