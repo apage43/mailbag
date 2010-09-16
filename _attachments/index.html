@@ -59,18 +59,36 @@
             }
 
             var sammyapp = $.sammy(function() {
-                this.get('#/', function() {
+                this.get('#/', function() { this.redirect('#/Z'); });
+                
+                this.get('#/:key', function(ctx) {
                     $('#titlebar').text('mailbag!');
+                    var start = ctx.params["key"];
+                    var skips = 0;
+                    var amt = 15;
+                    if(start != "Z") {
+                        skips = 1;
+                    }
+
                     db.view('mailbag/mail-items', {
-                        limit: 50,
+                        limit: amt,
+                        skip: skips,
+                        startkey: [start],
                         descending: true,
                         success: function(data)
                         {
                             console.log(data);
                             $('#mainpane').html($.mustache(templates.messages, data, null));
+                            if(data.rows.length == amt) {
+                                $('#mainpane').append('<a class="next" href="#/' + data.rows[data.rows.length-1].key + '">next</a>');
+                            }
+                            if(start != "Z") {
+                                $('#mainpane').append('<a class="prev" href="javascript: history.go(-1);">prev</a>');
+                            }
                         }
                     });
                 });
+
 
                 this.get('#/message/:id', function(ctx) {
                     db.openDoc(ctx.params["id"], {success: function(data) {
@@ -90,9 +108,7 @@
                           {
                               if(others.rows.length == 0)
                               {
-                                  //Short circuit.
                                   render_message(data, {"class": "picked"});
-                                  console.log("Not a thread!");
                                   return;
                               }
                               var max = 0;
