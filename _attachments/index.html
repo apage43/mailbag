@@ -17,6 +17,22 @@
             var db = app.db;
             console.log(app.db);
             var templates = app.ddoc.templates;
+            function show_bag_links()
+            {
+                db.view('mailbag/mail-items', {
+                    group_level: 1,
+                    success: function(data)
+                    {
+                        $('#baglist').html('');
+                        for (var b in data.rows)
+                        {
+                            console.log(data.rows[b]);
+                            $('#baglist').append('<a href="#/bag/' + data.rows[b].key[0] + '/Z">'
+                                + data.rows[b].key[0] + ' (' + data.rows[b].value + ')</a> ');
+                        }
+                    }
+                });
+            }
             function render_message(data, hints) {
                  var msg = {};
                  var attpath = '/' + db.name + '/' + data._id + '/';
@@ -24,8 +40,9 @@
                  msg.from = data.from;
                  msg.date = data.headers["Date"];
                  msg.hints = hints;
+                 msg.bags = data.bags;
                  if(data._attachments) {
-                     msg.has_attach = "-"; //annoted that true won't work here.
+                     msg.has_attach = "-"; //annoyed that true won't work here.
                      msg.attachments = [];
                      for(attname in data._attachments)
                      {
@@ -59,13 +76,15 @@
             }
 
             var sammyapp = $.sammy(function() {
-                this.get('#/', function() { this.redirect('#/Z'); });
+                this.get('#/', function() { this.redirect('#/bag/all-mail/Z'); });
                 
-                this.get('#/:key', function(ctx) {
-                    $('#titlebar').text('mailbag!');
+                this.get('#/bag/:bag/:key', function(ctx) {
                     var start = ctx.params["key"];
                     var skips = 0;
                     var amt = 15;
+                    var bag = ctx.params["bag"];
+                    $('#titlebar').html('mailbag! - in bag: <span id="bagname">' + bag + '</span> <div id="baglist"></div>');
+                    $('#bagname').click(show_bag_links);
                     if(start != "Z") {
                         skips = 1;
                     }
@@ -73,14 +92,16 @@
                     db.view('mailbag/mail-items', {
                         limit: amt,
                         skip: skips,
-                        startkey: [start],
+                        reduce: false,
+                        startkey: [bag, start],
+                        endkey: [bag, false],
                         descending: true,
                         success: function(data)
                         {
                             console.log(data);
                             $('#mainpane').html($.mustache(templates.messages, data, null));
                             if(data.rows.length == amt) {
-                                $('#mainpane').append('<a class="next" href="#/' + data.rows[data.rows.length-1].key + '">next</a>');
+                                $('#mainpane').append('<a class="next" href="#/bag/' + bag + '/' + data.rows[data.rows.length-1].key[1] + '">next</a>');
                             }
                             if(start != "Z") {
                                 $('#mainpane').append('<a class="prev" href="javascript: history.go(-1);">prev</a>');
@@ -92,7 +113,10 @@
 
                 this.get('#/message/:id', function(ctx) {
                     db.openDoc(ctx.params["id"], {success: function(data) {
-                        $('#titlebar').text('mailbag! - ' + data.subject);
+                        var title = data.subject;
+                        if(data.headers["Delivered-To"]) 
+                            title = title + ' - (' + data.headers["Delivered-To"] + ')';
+                        $('#titlebar').text('mailbag! - ' + title);
                         $('#mainpane').html('');
                         var refheader = data.headers["References"];
                         var refs = [];
@@ -120,7 +144,6 @@
                                  maxkey = others.rows[o].key;
                                }
                               }
-                              console.log(maxkey);
                               db.view('mailbag/refs', {
                                   reduce: false,
                                   startkey: maxkey,

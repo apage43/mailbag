@@ -1,4 +1,5 @@
 <div class="message{{#hints}} {{class}}{{/hints}}">
+<div class="msgbags">{{#bags}}<span class="bag">{{.}}</span>{{/bags}}</div>
 <p><b>Subject: {{subject}}</b></p>
 <p><b>From: {{#from}}{{personal}} &lt;{{address}}&gt;{{/from}}</b></p>
 <p><b>Date: {{date}}</b></p>

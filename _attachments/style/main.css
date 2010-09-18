@@ -329,6 +329,19 @@ button {  width: auto; overflow: visible; }
 .picked {
 }
 
+blockquote {
+    margin-left: 2em;
+    color: #888;
+}
+
+#bagname {
+    text-decoration: underline;
+}
+
+#bagname:hover {
+    font-weight: bold;
+}
+
 .next {
     float: right;
     text-size: 1.2em;
@@ -340,4 +353,17 @@ button {  width: auto; overflow: visible; }
     text-size: 1.2em;
     font-weight: bold;
     margin-right: 1em;
+}
+
+.msgbags {
+    float: right;
+}
+
+.bag {
+    margin-right: .5em;
+    text-decoration: underline;
+}
+
+.bag:hover {
+    font-weight: bold;
 }
